@@ -63,3 +63,41 @@ long get_file_size(const char *path) {
     return -1;
 }
 
+int get_local_ip(char *ip_buffer, size_t buffer_size) {
+    struct ifaddrs *ifaddr, *ifa;
+    int found = 0;
+    
+    if (getifaddrs(&ifaddr) == -1) {
+        return -1;
+    }
+    
+    // Look for the first non-loopback IPv4 address
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL) continue;
+        
+        if (ifa->ifa_addr->sa_family == AF_INET) {
+            struct sockaddr_in *sin = (struct sockaddr_in *)ifa->ifa_addr;
+            // Skip loopback (127.0.0.1)
+            if (sin->sin_addr.s_addr != htonl(INADDR_LOOPBACK)) {
+                const char *ip = inet_ntoa(sin->sin_addr);
+                if (ip) {
+                    strncpy(ip_buffer, ip, buffer_size - 1);
+                    ip_buffer[buffer_size - 1] = '\0';
+                    found = 1;
+                    break;
+                }
+            }
+        }
+    }
+    
+    freeifaddrs(ifaddr);
+    
+    if (!found) {
+        // Fallback to localhost if no network interface found
+        strncpy(ip_buffer, "127.0.0.1", buffer_size - 1);
+        ip_buffer[buffer_size - 1] = '\0';
+    }
+    
+    return found ? 0 : -1;
+}
+

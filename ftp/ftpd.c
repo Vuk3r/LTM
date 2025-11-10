@@ -70,12 +70,34 @@ static void handle_client(void *arg) {
                 session->data_port = ntohs(pasv_addr.sin_port);
                 session->passive_fd = pasv_sock;
                 
-                // Get server IP (simplified - use localhost)
-                char response[256];
-                snprintf(response, sizeof(response), 
-                        "Entering Passive Mode (127,0,0,1,%d,%d)",
-                        session->data_port / 256, session->data_port % 256);
-                send_response(session->control_fd, FTP_PASSIVE_MODE, response);
+                // Get local network IP address
+                char local_ip[16];
+                if (get_local_ip(local_ip, sizeof(local_ip)) == 0) {
+                    // Parse IP address into comma-separated format
+                    int h1, h2, h3, h4;
+                    if (sscanf(local_ip, "%d.%d.%d.%d", &h1, &h2, &h3, &h4) == 4) {
+                        char response[256];
+                        snprintf(response, sizeof(response), 
+                                "Entering Passive Mode (%d,%d,%d,%d,%d,%d)",
+                                h1, h2, h3, h4,
+                                session->data_port / 256, session->data_port % 256);
+                        send_response(session->control_fd, FTP_PASSIVE_MODE, response);
+                    } else {
+                        // Fallback to localhost format
+                        char response[256];
+                        snprintf(response, sizeof(response), 
+                                "Entering Passive Mode (127,0,0,1,%d,%d)",
+                                session->data_port / 256, session->data_port % 256);
+                        send_response(session->control_fd, FTP_PASSIVE_MODE, response);
+                    }
+                } else {
+                    // Fallback to localhost
+                    char response[256];
+                    snprintf(response, sizeof(response), 
+                            "Entering Passive Mode (127,0,0,1,%d,%d)",
+                            session->data_port / 256, session->data_port % 256);
+                    send_response(session->control_fd, FTP_PASSIVE_MODE, response);
+                }
             } else {
                 send_response(session->control_fd, FTP_ACTION_FAILED, "Passive mode failed");
             }
@@ -137,13 +159,15 @@ static void handle_client(void *arg) {
                 while ((bytes_read = fread(file_buffer, 1, sizeof(file_buffer), file)) > 0) {
                     send(session->data_fd, file_buffer, bytes_read, 0);
                 }
-            
-            fclose(file);
-            if (session->data_fd >= 0) {
+                
+                fclose(file);
                 close(session->data_fd);
                 session->data_fd = -1;
+                send_response(session->control_fd, FTP_CLOSING_DATA, "Transfer complete");
+            } else {
+                fclose(file);
+                send_response(session->control_fd, FTP_ACTION_FAILED, "Data connection failed");
             }
-            send_response(session->control_fd, FTP_CLOSING_DATA, "Transfer complete");
         }
         else if (strcmp(command, CMD_STOR) == 0) {
             if (!session->authenticated) {

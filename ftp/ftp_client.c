@@ -1,13 +1,4 @@
-#include "ftp_common.h"
-
-typedef struct {
-    int control_fd;
-    int data_fd;
-    int passive_fd;
-    char server_ip[64];
-    int server_port;
-    int authenticated;
-} ftp_client_t;
+#include "ftp_client.h"
 
 static int connect_to_server(const char *ip, int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);

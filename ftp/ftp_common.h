@@ -14,8 +14,10 @@
 #include <errno.h>
 #include <pthread.h>
 #include <time.h>
+#include <ifaddrs.h>
+#include <netdb.h>
 
-#define FTP_PORT 21
+#define FTP_PORT 2121
 #define DATA_PORT_BASE 5000
 #define BUFFER_SIZE 4096
 #define MAX_PATH_LEN 512
@@ -72,6 +74,7 @@ void send_response(int fd, int code, const char *message);
 int parse_port_command(const char *cmd, struct sockaddr_in *addr);
 void get_file_list(const char *path, char *buffer, size_t buffer_size);
 long get_file_size(const char *path);
+int get_local_ip(char *ip_buffer, size_t buffer_size);
 
 #endif
 

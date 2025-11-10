@@ -5,7 +5,6 @@
 extern int ftpd_start(int port);
 
 static GtkWidget *status_text;
-static GtkWidget *port_entry;
 static GtkWidget *start_button;
 static GtkWidget *stop_button;
 static int server_running = 0;
@@ -35,19 +34,9 @@ static void *server_thread_func(void *arg) {
 static void on_start_clicked(GtkWidget *widget, gpointer data) {
     if (server_running) return;
     
-    const char *port_str = gtk_entry_get_text(GTK_ENTRY(port_entry));
-    if (port_str && strlen(port_str) > 0) {
-        server_port = atoi(port_str);
-        if (server_port <= 0 || server_port > 65535) {
-            append_status("Invalid port number. Using default port 21.");
-            server_port = FTP_PORT;
-        }
-    }
-    
     server_running = 1;
     gtk_widget_set_sensitive(start_button, FALSE);
     gtk_widget_set_sensitive(stop_button, TRUE);
-    gtk_widget_set_sensitive(port_entry, FALSE);
     
     pthread_create(&server_thread, NULL, server_thread_func, &server_port);
     append_status("FTP Server started successfully!");
@@ -61,7 +50,6 @@ static void on_stop_clicked(GtkWidget *widget, gpointer data) {
     server_running = 0;
     gtk_widget_set_sensitive(start_button, TRUE);
     gtk_widget_set_sensitive(stop_button, FALSE);
-    gtk_widget_set_sensitive(port_entry, TRUE);
     append_status("FTP Server stopped.");
 }
 
@@ -88,14 +76,13 @@ int main(int argc, char *argv[]) {
     vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     gtk_container_add(GTK_CONTAINER(window), vbox);
     
-    // Port configuration
+    // Server controls
     hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
-    label = gtk_label_new("Port:");
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
     
-    port_entry = gtk_entry_new();
-    gtk_entry_set_text(GTK_ENTRY(port_entry), "21");
-    gtk_box_pack_start(GTK_BOX(hbox), port_entry, TRUE, TRUE, 0);
+    char port_label_text[64];
+    snprintf(port_label_text, sizeof(port_label_text), "Port: %d (No sudo required)", FTP_PORT);
+    label = gtk_label_new(port_label_text);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
     
     start_button = gtk_button_new_with_label("Start Server");
     g_signal_connect(start_button, "clicked", G_CALLBACK(on_start_clicked), NULL);
@@ -127,7 +114,10 @@ int main(int argc, char *argv[]) {
     gtk_widget_show_all(window);
     
     append_status("FTP Server GUI Ready");
-    append_status("Configure port and click 'Start Server' to begin");
+    char msg[128];
+    snprintf(msg, sizeof(msg), "Server will run on port %d (no sudo required)", FTP_PORT);
+    append_status(msg);
+    append_status("Click 'Start Server' to begin");
     
     gtk_main();
     
